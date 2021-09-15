@@ -8,6 +8,92 @@ if(isset($_SESSION['membre_BDE'])){
    
     echo "<h1>Poster une manifestation</h1>";
     if(isset($_SESSION['membre_BDE'])){
+        if (isset($_POST['Envoyer'])){
+            if(isset($_POST['nom']) && isset($_POST['descr']) && isset($_POST['recurrence'])  && isset($_POST['prix'])&& isset($_POST['jour']) && isset($_POST['mois']) && isset($_POST['annee'])){
+                //le formulaire a des valeurs et n'a aucun champ vide
+                //nous allons concatener les différents _POST relatif à la date pour obtenir une date
+               
+                $jour=str_replace("jour","",$_POST['jour']);
+                $mois=$_POST['mois'];
+                $annee=str_replace("annee","",$_POST['annee']);
+                $dateChoisie=$annee."-".$mois."-".$jour;
+                $nom = $_POST['nom'];
+                $desc = $_POST['descr'];
+                $rec = $_POST['recurrence'];
+                $prix = $_POST['prix'];
+                
+                //vérification des champs
+                
+                //on vérifie que cette manifestation n'existe pas déja
+               
+                $testExistance = $bdd->prepare("SELECT * FROM manifestations WHERE NOM=:nom AND DATEE=:datee AND RECURRENCE=:recurence AND PRIX=:prix");
+                $testExistance->bindValue(':nom',$_POST['nom'], PDO::PARAM_STR);
+                $testExistance->bindValue(':recurence',$_POST['recurrence'], PDO::PARAM_STR);
+                $testExistance->bindValue(':prix',$_POST['prix'], PDO::PARAM_STR);
+                $testExistance->bindValue(':datee',$dateChoisie,PDO::PARAM_STR);
+                $testExistance->execute();
+                //$testExistance->execute();
+                $existance= $testExistance->fetch();
+                if($existance!=NULL){
+                    //la variable existe, l'objet existe déjà
+                    echo"la manifestation existe déjà";
+                }else{
+                    $img = $_FILES['image']['name'];
+                    $img_tmp = $_FILES['image']['tmp_name'];
+                    if(!empty($img_tmp)){
+                        
+                        $image = explode('.', $img);
+                        
+                        $image_ext = end($image);
+                        if(in_array(strtolower($image_ext), array('png', 'jpg', 'jpeg')) == false){
+                            echo 'Veuillez rentrer une image en .png ou .jpg ou .jpeg';
+                            
+                        }else{
+                            
+                            $image_size = getimagesize($img_tmp);
+                            
+                            if($image_size['mime'] == 'image/jpeg'){
+                                $image_src = imagecreatefromjpeg($img_tmp);
+                            }else if($image_size['mime'] == 'image/png'){
+                                $image_src = imagecreatefrompng($img_tmp);
+                            }else{
+                                
+                                $image_src = false;
+                                echo 'Veuillez rentrer une image valide !';
+                                
+                            }
+                            $image_finale = $image_src;
+                            imagejpeg($image_finale,'../boutique/admin/imgs/'.$img);
+                            
+                            
+                            
+                            $rqtInsertion = $bdd->prepare("INSERT INTO `manifestations`(`NOM`, `DESCRIPTION`, `IMAGE`, `DATEE`, `RECURRENCE`, `PRIX`) VALUES (:nom, :desc,:img,:date, :rec,:prix)");
+                            $rqtInsertion->bindValue(':nom',$nom, PDO::PARAM_STR);
+                            $rqtInsertion->bindValue(':desc',$desc, PDO::PARAM_STR);
+                            $rqtInsertion->bindValue(':img',$img, PDO::PARAM_STR);
+                            $rqtInsertion->bindValue(':date',$dateChoisie, PDO::PARAM_STR);
+                            $rqtInsertion->bindValue(':rec',$rec, PDO::PARAM_STR);
+                            $rqtInsertion->bindValue(':prix',$prix, PDO::PARAM_STR);
+                            $rqtInsertion->execute();
+                            $rqtInsertion->closeCursor();
+
+                            header('Location: admin.php');
+                        }
+                        
+                    }else{
+                        echo 'Veuillez rentrer une image';
+                    }
+                    //la variable n'exixste pas : on peut poursuivre vers la préparation de la requête
+                    echo"cette manifestation n'existe pas";
+                    //on va préparer une requête SQL avec ces données, il faut que la requête soit exécutée autant de fois que la valeur de l'instance et que la date par rapport au moment de l'envoi soit incrémenté de la valeur de la récurence
+                }
+            }else{
+                //erreur
+                echo"remplir touss les champs";
+                
+            }
+            
+        }
         //fonction poster manifestation
         //génération d'un formulaire en method post qui permet d'entrer les valeurs de la manifestation à ajouter
            echo"
@@ -66,92 +152,7 @@ if(isset($_SESSION['membre_BDE'])){
             <input type=\"submit\" name=\"Envoyer\"><br>
             <form/><br>";
                 //traitement du formulaire
-                if (isset($_POST['Envoyer'])){
-                    if(isset($_POST['nom']) && isset($_POST['descr']) && isset($_POST['recurrence'])  && isset($_POST['prix'])&& isset($_POST['jour']) && isset($_POST['mois']) && isset($_POST['annee'])){
-                        //le formulaire a des valeurs et n'a aucun champ vide
-                        //nous allons concatener les différents _POST relatif à la date pour obtenir une date
-                       
-                        $jour=str_replace("jour","",$_POST['jour']);
-                        $mois=$_POST['mois'];
-                        $annee=str_replace("annee","",$_POST['annee']);
-                        $dateChoisie=$annee."-".$mois."-".$jour;
-                        $nom = $_POST['nom'];
-                        $desc = $_POST['descr'];
-                        $rec = $_POST['recurrence'];
-                        $prix = $_POST['prix'];
-                        
-                        //vérification des champs
-                        
-                        //on vérifie que cette manifestation n'existe pas déja
-                       
-                        $testExistance = $bdd->prepare("SELECT * FROM manifestations WHERE NOM=:nom AND DATEE=:datee AND RECURRENCE=:recurence AND PRIX=:prix");
-                        $testExistance->bindValue(':nom',$_POST['nom'], PDO::PARAM_STR);
-                        $testExistance->bindValue(':recurence',$_POST['recurrence'], PDO::PARAM_STR);
-                        $testExistance->bindValue(':prix',$_POST['prix'], PDO::PARAM_STR);
-                        $testExistance->bindValue(':datee',$dateChoisie,PDO::PARAM_STR);
-                        $testExistance->execute();
-                        //$testExistance->execute();
-                        $existance= $testExistance->fetch();
-                        if($existance!=NULL){
-                            //la variable existe, l'objet existe déjà
-                            echo"la manifestation existe déjà";
-                        }else{
-                            $img = $_FILES['image']['name'];
-                            $img_tmp = $_FILES['image']['tmp_name'];
-                            if(!empty($img_tmp)){
-                                
-                                $image = explode('.', $img);
-                                
-                                $image_ext = end($image);
-                                if(in_array(strtolower($image_ext), array('png', 'jpg', 'jpeg')) == false){
-                                    echo 'Veuillez rentrer une image en .png ou .jpg ou .jpeg';
-                                    
-                                }else{
-                                    
-                                    $image_size = getimagesize($img_tmp);
-                                    
-                                    if($image_size['mime'] == 'image/jpeg'){
-                                        $image_src = imagecreatefromjpeg($img_tmp);
-                                    }else if($image_size['mime'] == 'image/png'){
-                                        $image_src = imagecreatefrompng($img_tmp);
-                                    }else{
-                                        
-                                        $image_src = false;
-                                        echo 'Veuillez rentrer une image valide !';
-                                        
-                                    }
-                                    $image_finale = $image_src;
-                                    imagejpeg($image_finale,'../boutique/admin/imgs/'.$img);
-                                    
-                                    
-                                    
-                                    $rqtInsertion = $bdd->prepare("INSERT INTO `manifestations`(`NOM`, `DESCRIPTION`, `IMAGE`, `DATEE`, `RECURRENCE`, `PRIX`) VALUES (:nom, :desc,:img,:date, :rec,:prix)");
-                                    $rqtInsertion->bindValue(':nom',$nom, PDO::PARAM_STR);
-                                    $rqtInsertion->bindValue(':desc',$desc, PDO::PARAM_STR);
-                                    $rqtInsertion->bindValue(':img',$img, PDO::PARAM_STR);
-                                    $rqtInsertion->bindValue(':date',$dateChoisie, PDO::PARAM_STR);
-                                    $rqtInsertion->bindValue(':rec',$rec, PDO::PARAM_STR);
-                                    $rqtInsertion->bindValue(':prix',$prix, PDO::PARAM_STR);
-                                    $rqtInsertion->execute();
-                                    $rqtInsertion->closeCursor();
-
-                                    header('Location: admin.php');
-                                }
-                                
-                            }else{
-                                echo 'Veuillez rentrer une image';
-                            }
-                            //la variable n'exixste pas : on peut poursuivre vers la préparation de la requête
-                            echo"cette manifestation n'existe pas";
-                            //on va préparer une requête SQL avec ces données, il faut que la requête soit exécutée autant de fois que la valeur de l'instance et que la date par rapport au moment de l'envoi soit incrémenté de la valeur de la récurence
-                        }
-                    }else{
-                        //erreur
-                        echo"remplir touss les champs";
-                        
-                    }
-                    
-                }
+               
 
 
 
